@@ -4,7 +4,7 @@ getgenv().Settings = {
     AutoButton = true,
     AutoInterval = 0.1,
     -------------------
-    InstantPurchase = true,
+    InstantPurchase = false,
     -------------------
     AutoMassPurchase = true,
     Debug = true
@@ -14,7 +14,7 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
-local CoreGui = game:GetService("CoreGui")
+local CoreGui = getrenv and getrenv().game:GetService("CoreGui") or game:GetService("CoreGui")
 local MarketplaceService = game:GetService("MarketplaceService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -49,7 +49,7 @@ local SETTINGS_DEFAULTS = {
     CopyButton = true,
     AutoButton = true,
     AutoInterval = 0.1,
-    InstantPurchase = true,
+    InstantPurchase = false,
     AutoMassPurchase = true,
     Debug = true,
 }
