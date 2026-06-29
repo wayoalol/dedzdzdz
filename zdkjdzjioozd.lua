@@ -1,17 +1,14 @@
--- by 7yd7
---[[
 getgenv().Settings = {
-    CopyButton = false,
+    CopyButton = true,
     -------------------
-    AutoButton = false,
+    AutoButton = true,
     AutoInterval = 0.1,
     -------------------
-    InstantPurchase = false,
+    InstantPurchase = true,
     -------------------
-    AutoMassPurchase = false,
-    Debug = false
+    AutoMassPurchase = true,
+    Debug = true
 }
-]]
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -49,12 +46,12 @@ local OVERLAY_RESCAN_INTERVAL = 0.03
 local LastPrompt = { Id = nil, Type = nil, Nonce = 0 }
 local LastInstant = { PromptNonce = -1 }
 local SETTINGS_DEFAULTS = {
-    CopyButton = false,
-    AutoButton = false,
-    AutoInterval = 0.3,
-    InstantPurchase = false,
-    AutoMassPurchase = false,
-    Debug = false,
+    CopyButton = true,
+    AutoButton = true,
+    AutoInterval = 0.1,
+    InstantPurchase = true,
+    AutoMassPurchase = true,
+    Debug = true,
 }
 
 local function getSettings()
@@ -191,7 +188,6 @@ local function applyVisualState(root, color)
     end
 end
 
-
 local function fireEventFallback(event, ...)
     if type(firesignal) == "function" then
         pcall(firesignal, event, ...)
@@ -292,6 +288,7 @@ local function runInstantPurchase(id, options)
         return
     end
 end
+
 local function capturePrompt(player, id, promptType)
     if not isCurrentRun() then return end
     if player == LocalPlayer then
@@ -919,93 +916,10 @@ function handleOverlay(child, force)
 end
 
 trackConnection(CoreGui.DescendantAdded:Connect(handleOverlay))
+
 for _, child in ipairs(CoreGui:GetDescendants()) do
-    task.spawn(handleOverlay, child)
+    handleOverlay(child)
 end
+
 startInstantStateWatcher()
 startOverlayRescanLoop()
-
-local function performAutoMassPurchase()
-    if not isSettingEnabled("AutoMassPurchase") then return end
-    task.spawn(function()
-        local success, productsPage = pcall(function()
-            return MarketplaceService:GetDeveloperProductsAsync()
-        end)
-        if success and productsPage then
-            while true do
-                local products = productsPage:GetCurrentPage()
-                for _, info in ipairs(products) do
-                    local id = info.ProductId
-                    local name = info.Name or "Unknown"
-                    local price = info.PriceInRobux or 0
-                    
-                    if isSettingEnabled("Debug") then
-                        print(string.format("Product: %s | %s | %s", tostring(name), tostring(id), tostring(price)))
-                    end
-                    
-                    local successSig = pcall(function()
-                        MarketplaceService:SignalPromptProductPurchaseFinished(LocalPlayer.UserId, id, true)
-                    end)
-                    if not successSig then
-                        fireEventFallback(MarketplaceService.PromptProductPurchaseFinished, LocalPlayer.UserId, id, true)
-                    end
-                    task.wait(0.1)
-                end
-                if productsPage.IsFinished then
-                    break
-                end
-                pcall(function() productsPage:AdvanceToNextPageAsync() end)
-            end
-        end
-        
-        local HttpService = game:GetService("HttpService")
-        local universeId = game.GameId
-        if universeId == 0 then
-            pcall(function()
-                local res = game:HttpGet("https://apis.roblox.com/universes/v1/places/" .. tostring(game.PlaceId) .. "/universe")
-                local data = HttpService:JSONDecode(res)
-                if data and data.universeId then
-                    universeId = data.universeId
-                end
-            end)
-        end
-        
-        if universeId and universeId > 0 then
-            pcall(function()
-                local cursor = ""
-                while cursor do
-                    local url = "https://games.roblox.com/v1/games/" .. tostring(universeId) .. "/game-passes?limit=100"
-                    if cursor ~= "" then
-                        url = url .. "&cursor=" .. cursor
-                    end
-                    local res = game:HttpGet(url)
-                    local data = HttpService:JSONDecode(res)
-                    if data and data.data then
-                        for _, gp in ipairs(data.data) do
-                            local id = gp.id
-                            local name = gp.name or "Unknown"
-                            local price = gp.price or 0
-                            
-                            if isSettingEnabled("Debug") then
-                                print(string.format("GamePass: %s | %s | %s", tostring(name), tostring(id), tostring(price)))
-                            end
-                            
-                            local successSig = pcall(function()
-                                MarketplaceService:SignalPromptGamePassPurchaseFinished(LocalPlayer.UserId, id, true)
-                            end)
-                            if not successSig then
-                                fireEventFallback(MarketplaceService.PromptGamePassPurchaseFinished, LocalPlayer, id, true)
-                            end
-                            task.wait(0.1)
-                        end
-                        cursor = data.nextPageCursor
-                    else
-                        cursor = nil
-                    end
-                end
-            end)
-        end
-    end)
-end
-
-performAutoMassPurchase()
